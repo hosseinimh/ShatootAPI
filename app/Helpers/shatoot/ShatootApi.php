@@ -1,13 +1,14 @@
 <?php
 
-require_once(__DIR__ . '/../../config.php');
+require_once(__DIR__ . '/../../../config.php');
+require_once(__DIR__ . '/../Helper.php');
 
 class ShatootApi
 {
-    private string $baseAddress;
-    private string $username;
-    private string $password;
-    private ?string $bearerToken = null;
+    private $baseAddress;
+    private $username;
+    private $password;
+    private $bearerToken = null;
 
     public function __construct()
     {
@@ -15,12 +16,14 @@ class ShatootApi
         $this->username = SHATOOT_USERNAME;
         $this->password = SHATOOT_PASSWORD;
 
-        if (!$this->login()) {
+        if (isset($_SESSION['bearer-token'])) {
+            $this->bearerToken = $_SESSION['bearer-token'];
+        } else if (!$this->login()) {
             throw new Exception('Shatoo API connect error.');
         }
     }
 
-    public function getGoodsbyRemaindsInStocks(string $date)
+    public function getGoodsbyRemaindsInStocks($date)
     {
         $url = $this->baseAddress . '/Products/GoodsbyRemaindsInStocks';
         $postFields = [
@@ -36,7 +39,7 @@ class ShatootApi
         return $this->postRequest($url, $postFields);
     }
 
-    public function getGoodsbyRemaindsInStocksBySalePrice(string $date)
+    public function getGoodsbyRemaindsInStocksBySalePrice($date, $start = 0, $count = 9999999)
     {
         $url = $this->baseAddress . '/Products/GoodsbyRemaindsInStocksBySalePrice';
         $postFields = [
@@ -45,8 +48,8 @@ class ShatootApi
             'idGoods' => '',
             'SelectStockByshatootSoft' => false,
             'ShowRemaindOtherStock' => false,
-            'Skip' => 0,
-            'Take' => 9999999
+            'Skip' => $start,
+            'Take' => $count
         ];
 
         return $this->postRequest($url, $postFields);
@@ -64,7 +67,7 @@ class ShatootApi
         return $this->postRequest($url, $postFields);
     }
 
-    private function login(): mixed
+    private function login()
     {
         try {
             $url = $this->baseAddress . '/shauth/login/' . $this->username . '/' . $this->password;
@@ -72,16 +75,18 @@ class ShatootApi
 
             if ($result->access_Token) {
                 $this->bearerToken = $result->access_Token;
+                $_SESSION["bearer-token"] = $result->access_Token;
 
                 return true;
             }
-        } catch (Exception) {
+        } catch (Exception $e) {
+            Helper::print($e->getMessage());
         }
 
         return false;
     }
 
-    private function getRequest(string $url): mixed
+    private function getRequest($url)
     {
         try {
             $ch = curl_init($url);
@@ -89,19 +94,27 @@ class ShatootApi
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, 0);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
             $result = curl_exec($ch);
+            $curl_errno = curl_errno($ch);
 
             curl_close($ch);
 
+            if ($curl_errno > 0) {
+                return null;
+            }
+
             return $this->parseJsonData($result);
-        } catch (Exception) {
+        } catch (Exception $e) {
+            Helper::print($e->getMessage());
         }
 
         return null;
     }
 
-    private function postRequest(string $url, array $postFields): mixed
+    private function postRequest($url, $postFields)
     {
         try {
             if (is_null($this->bearerToken)) {
@@ -117,27 +130,32 @@ class ShatootApi
             curl_setopt($ch, CURLOPT_POST, 1);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
             $result = curl_exec($ch);
+            $curl_errno = curl_errno($ch);
 
             curl_close($ch);
 
+            if ($curl_errno > 0) {
+                return null;
+            }
+
             return $this->parseJsonData($result);
-        } catch (Exception) {
+        } catch (Exception $e) {
+            Helper::print($e->getMessage());
         }
 
         return null;
     }
 
-    private function parseJsonData(string|bool $data): mixed
+    private function parseJsonData($data)
     {
         try {
-            if (is_bool($data)) {
-                return null;
-            }
-
             return json_decode($data)->data;
-        } catch (Exception) {
+        } catch (Exception $e) {
+            Helper::print($e->getMessage());
         }
 
         return null;

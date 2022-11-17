@@ -1,14 +1,15 @@
 <?php
 
-require_once(__DIR__ . '/../config.php');
+require_once(__DIR__ . '/../../../config.php');
+require_once(__DIR__ . '/../../Helpers/Helper.php');
 
 class Db
 {
     private $mysqli;
-    private string $host;
-    private string $username;
-    private string $password;
-    private string $db;
+    private $host;
+    private $username;
+    private $password;
+    private $db;
 
     public function __construct()
     {
@@ -20,7 +21,7 @@ class Db
         $this->connect();
     }
 
-    public function connect(): bool
+    public function connect()
     {
         try {
             $this->mysqli = new mysqli($this->host, $this->username, $this->password, $this->db);
@@ -29,28 +30,33 @@ class Db
                 throw new Exception('Connection error. ' . mysqli_connect_error());
             }
 
+            $this->mysqli->set_charset("utf8mb4");
+
             return true;
-        } catch (Exception) {
+        } catch (Exception $e) {
+            Helper::print($e->getMessage());
         }
 
         return false;
     }
 
-    public function __call(string $name, array $arguments): mixed
+    public function __call($name, $arguments)
     {
         try {
             return is_callable([$this->mysqli, $name]) ? call_user_func_array([$this->mysqli, $name], $arguments) : null;
-        } catch (Exception) {
+        } catch (Exception $e) {
+            Helper::print($e->getMessage());
         }
 
         return null;
     }
 
-    public function __get(string $name): mixed
+    public function __get($name)
     {
         try {
             return $this->mysqli->$name;
-        } catch (Exception) {
+        } catch (Exception $e) {
+            Helper::print($e->getMessage());
         }
 
         return null;

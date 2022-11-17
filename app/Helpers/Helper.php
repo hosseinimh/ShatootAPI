@@ -7,7 +7,7 @@ class Helper
         self::print(['Error no' => $errno, 'Message' => $errstr, 'File' => $errfile, 'Line' => $errline]);
     }
 
-    public static function print(mixed $data)
+    public static function print($data)
     {
         $data = is_bool($data) ? ($data ? 'true' : 'false') : (is_null($data) ? 'null' : $data);
 
